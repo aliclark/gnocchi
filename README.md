@@ -65,6 +65,7 @@ COUNTER_HEX is the counter number in hex, zero padded to length 32.
 
 The adversary can:
  * Convince the client to send to their own server with the victim's pubkey
+ * Convince the client to send to their own server their own pubkey
  * Read the packet and source, destination details
  * Intercept a client's knock and send it as their own
 
@@ -72,6 +73,7 @@ Countermeasures:
  * The packet must be signed by a key belonging to the client
  * Each packet can only be used for one knock on a daemon (due to counter increment)
  * Each knock limits its scope to the IP pairs of the communication
+ * Each knock limits its scope to the public key of the daemon
 
 Defense in depth (implemented):
  * Packet content is encrypted and length randomized to make the

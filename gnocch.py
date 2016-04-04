@@ -122,11 +122,11 @@ counter = read_counter()
 write_counter(counter + 1)
 # FIXME: unlock file
 
-log('[INFO] Knock '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex')+' '+client_sign_public_key.encode('hex'))
+log('[INFO] knock '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex')+' '+client_sign_public_key.encode('hex'))
 
-command = 'v01 knock '+client_ip.rjust(15)+' '+server_ip.rjust(15)+' '+hex(counter)[2:].zfill(32)+(' '*6)
-assert len(command) == 80
-pad_blocks = random.randint(0, 52)
+command = 'v01 knock '+client_ip.rjust(15)+' '+server_ip.rjust(15)+' '+server_public_key.encode('hex')+' '+hex(counter)[2:].zfill(32)+(' '*5)
+assert len(command) == 144
+pad_blocks = random.randint(0, 48)
 command += ' ' * (pad_blocks * 16)
 
 signed = pysodium.crypto_sign(command, client_sign_private_key)
