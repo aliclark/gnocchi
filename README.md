@@ -61,8 +61,21 @@ the service from the normal firewall.
 The adversary can:
  * Convince the client to send to the adversary's server with the victim server's pubkey
  * Convince the client to send to the adversary's server with the adversary server's pubkey
- * Read the packet contents, source and destination IPs and ports
- * Intercept a client's knock and send it as their own
+ * Read any packets on the network
+ * OR
+ * Drop or inject any packets on the network
+
+Gnocchi does not defend against an adversary who can both read and
+arbitrarily inject on the network.
+
+Such an adversary could allow the knock to go ahead and quickly
+connect to the now opened service with injected syn TCP packet and
+reading the TCP syn/ack of the server.
+
+No port knocking systems can defend against this attack, however
+Gnocchi only allows a single syn packet through, so the valid user
+will have some feedback when their own session fails to connect
+(bearing in mind that normal packet loss can have the same effect).
 
 Countermeasures:
  * The packet must be signed by a key belonging to the client
