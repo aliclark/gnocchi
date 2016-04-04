@@ -19,7 +19,7 @@ client_key_regex = re.compile(r'^([0-9a-f]{'+str(pysodium.crypto_sign_PUBLICKEYB
 server_seed_regex = re.compile(r'^([0-9a-f]{64})$')
 
 def log(msg, client_ip=None, client_port=None, post=''):
-    sys.stderr.write(time.strftime('%Y-%m-%d %H:%M:%S')+' '+msg+(' from '+client_ip+':'+str(client_port)+(': '+repr(post) if post else '') if client_ip and client_port else '')+'\n')
+    sys.stderr.write(time.strftime('%Y-%m-%d %H:%M:%S')+' '+msg+(' from '+client_ip+':'+str(client_port) if client_ip and client_port else '')+(': '+repr(post) if post else '')+'\n')
 
 def parse_client_sign_key(keystr):
     m = client_key_regex.match(keystr)
@@ -131,6 +131,7 @@ PROTO_MIN_SIZE = pysodium.crypto_box_SEALBYTES + pysodium.crypto_sign_BYTES + 80
 
 while True:
     try:
+        client_ip, client_port = (None, None)
         cdata, (client_ip, client_port) = sock.recvfrom(1024)
 
         if len(cdata) < PROTO_MIN_SIZE:
@@ -197,5 +198,4 @@ while True:
         break
 
     except Exception as e:
-        print 'packet exception ', e
-        pass
+        log('[ERROR] packet exception', client_ip, client_port, e)
