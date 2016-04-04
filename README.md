@@ -20,6 +20,7 @@ internet.
  * can and should be run as non-root user
  * strong cryptographic security
  * fault tolerant
+ * stealthy - no feedback in response to network probes
 
 ## WARNING
 
