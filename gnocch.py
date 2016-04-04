@@ -4,7 +4,6 @@ import os
 import sys
 import re
 import time
-import subprocess
 import random
 import pysodium
 import socket
@@ -13,7 +12,6 @@ server_public_key = None
 server_ip = None
 server_port = None
 
-client_ip = None
 client_sign_private_key = None
 client_sign_public_key = None
 
@@ -54,19 +52,6 @@ for l in cfglines:
         if len(parts) != 2:
             continue
         server_ip = parts[1]
-
-    elif parts[0] == 'client_ip':
-        if len(parts) != 2:
-            continue
-        client_ip = parts[1]
-
-    elif parts[0] == 'client_ip_command':
-        if len(parts) < 2:
-            continue
-        client_ip_command = l[l.find(' '):].strip()
-        log('[INFO] running client_ip_command: ' + client_ip_command)
-        client_ip = subprocess.check_output(client_ip_command, shell=True).strip()
-        log('[INFO] got client_ip: ' + client_ip)
 
     elif parts[0] == 'client_private_key':
         if len(parts) != 2:
@@ -124,9 +109,9 @@ write_counter(counter + 1)
 
 log('[INFO] knock '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex')+' '+client_sign_public_key.encode('hex'))
 
-command = 'v01 knock '+client_ip.rjust(15)+' '+server_ip.rjust(15)+' '+server_public_key.encode('hex')+' '+hex(counter)[2:].zfill(32)+(' '*5)
-assert len(command) == 144
-pad_blocks = random.randint(0, 48)
+command = 'v02 knock '+server_ip.rjust(15)+' '+server_public_key.encode('hex')+' '+hex(counter)[2:].zfill(32)+(' '*5)
+assert len(command) == 128
+pad_blocks = random.randint(0, 49)
 command += ' ' * (pad_blocks * 16)
 
 signed = pysodium.crypto_sign(command, client_sign_private_key)

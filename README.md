@@ -77,12 +77,10 @@ The adversary can:
  * Convince the client to send to the adversary's server with the victim server's pubkey
  * Convince the client to send to the adversary's server with the adversary server's pubkey
  * Send packets (eg. UDP, TCP) from their own IP address to the server
- * Drop arbitrary packets on the network
- * Either: Read any packets on the network
- * Or: Inject arbitrary packets on the network
 
-Gnocchi does not defend against an adversary who can both read and
-arbitrarily inject on the network. Such an adversary is capable of
+Gnocchi does not defend against an adversary who can read packets on
+the network, since this capability almost always comes with the
+ability to inject arbitrary packets. Such an adversary is capable of
 hijacking or spoofing any TCP session from the client, and no port
 knocking daemon can protect against this.
 
@@ -104,12 +102,12 @@ Defense in depth (you):
 
 ## Protocol:
 
-crypto_box_seal(crypto_box_sign("v01 knock $CLIENT_IP $SERVER_IP $SERVER_PUBKEY $COUNTER_HEX", client_signkey), server_pubkey)
+crypto_box_seal(crypto_box_sign("v02 knock $SERVER_IP $SERVER_PUBKEY $COUNTER_HEX", client_signkey), server_pubkey)
 
- * CLIENT_IP is the ascii IP4 the client expects to be connecting from
- * SERVER_IP is the ascii IP4 the client expects to connect to
- * Both IP values are left padded to length 15 using spaces.
- * SERVER_PUBKEY is the hex of the server daemon's encryption key
- * COUNTER_HEX is the counter number in hex, zero padded to length
+ * SERVER_IP is the ascii IP4 the client expects to connect to, left
+   padded to length 15 using spaces.
+ * SERVER_PUBKEY is the 64 character hex of the server daemon's encryption key
+ * COUNTER_HEX is the counter value in hex, zero padded to length
    32. The counter is incremented by 1 on the client, and succeeds at
-   the server if it is greater than all previously seen counter values.
+   the server if it is greater than all previously seen counter
+   values.

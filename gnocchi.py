@@ -115,20 +115,19 @@ sock.bind((server_ip, server_port))
 
 log('[INFO] Listening on '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex'))
 
-command_regex = re.compile(r'^v01 knock (?P<client_ip>[0-9\. ]{15}) (?P<server_ip>[0-9\. ]{15}) (?P<server_pub>[0-9a-f]{64}) (?P<counter>[0-9a-f]{32})     ([ ]{16})*$')
+command_regex = re.compile(r'^v02 knock (?P<server_ip>[0-9\. ]{15}) (?P<server_pub>[0-9a-f]{64}) (?P<counter>[0-9a-f]{32})     ([ ]{16})*$')
 
 def parse_command(data):
     parts = command_regex.match(data)
     if not parts:
         return None
     return {
-        'client_ip': parts.group('client_ip').strip(),
         'server_ip': parts.group('server_ip').strip(),
         'server_pub': parts.group('server_pub'),
         'counter': int(parts.group('counter'), 16)
     }
 
-PROTO_MIN_SIZE = pysodium.crypto_box_SEALBYTES + pysodium.crypto_sign_BYTES + 144
+PROTO_MIN_SIZE = pysodium.crypto_box_SEALBYTES + pysodium.crypto_sign_BYTES + 128
 
 while True:
     try:
@@ -169,9 +168,6 @@ while True:
             log('[SEVERE] bad command', client_ip, client_port, plain)
             continue
 
-        if command['client_ip'] != client_ip:
-            log('[POSSIBLE_REPLAY] bad client IP', client_ip, client_port, command)
-            continue
         if command['server_ip'] != server_ip:
             log('[POSSIBLE_REPLAY] bad destination IP', client_ip, client_port, command)
             continue
