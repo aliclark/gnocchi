@@ -4,12 +4,13 @@ A secure, auditable port knock daemon.
 
 ## Why port knocking
 
-Port knocking is used to restrict access to non-public a network
+Port knocking is used to restrict access to a non-public network
 service (eg. ssh) in cases where the client's IP address is not known
-ahead of time (eg. a dynamic residential IP address).
+ahead of time (eg. with dynamic residential IP address).
 
-This protects the service against remote attacks with an unprivileged
-position on the network - random other hosts on the internet.
+This protects the service against remote attackers with an
+unprivileged position on the network - random other hosts on the
+internet.
 
 ## Why Gnocchi
 
@@ -18,10 +19,11 @@ position on the network - random other hosts on the internet.
  * replay protection by default
  * can and should be run as non-root user
  * strong cryptographic security
+ * fault tolerant
 
 ## WARNING
 
-Setting up a port knock firewal is extremely risky and can lead to
+Setting up a port knock firewall is extremely risky and can lead to
 locking out of a server. Please do not save any firewall to a
 persistent state until you are absolutely sure it works. Until that
 point, be sure that a hard reboot can get back to a working state.
@@ -79,18 +81,15 @@ The adversary can:
 
 Gnocchi does not defend against an adversary who can both read and
 arbitrarily inject on the network. Such an adversary is capable of
-hijacking or spoofing a TCP session from the client, and no port
+hijacking or spoofing any TCP session from the client, and no port
 knocking daemon can protect against this.
-
-Instead, port knocking should be used to firewall against other hosts
-on the internet, where restricting access to a fixed source IP would
-not possible (eg. you have a dynamic IP address).
 
 Countermeasures:
  * The packet must be signed by a key belonging to the client
- * Each packet can only be used for one knock on a daemon (due to counter increment)
+ * Each packet can only be used for one port knock on a daemon (due to counter increment)
  * Each knock limits its scope to the IP pairs of the communication
  * Each knock limits its scope to the public key of the daemon
+ * Each knock only allows for one connect attempt
 
 Defense in depth (implemented):
  * Packet content is encrypted and length randomized so a casual observer will
