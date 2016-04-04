@@ -113,7 +113,7 @@ def write_counter(c):
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((server_ip, server_port))
 
-print '[INFO] Listening '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex')
+log('[INFO] Listening on '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex'))
 
 command_regex = re.compile(r'^v01 knock (?P<client_ip>[0-9\. ]{15}) (?P<server_ip>[0-9\. ]{15}) (?P<counter>[0-9a-f]{32})      ([ ]{16})*$')
 
