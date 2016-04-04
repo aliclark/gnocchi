@@ -21,10 +21,15 @@ the valid config file. DO *NOT* PROCEED UNTIL THIS IS CONFIRMED
 WORKING.
 
 2) Generate a server key:  tr </dev/urandom -dc 0-9a-f | head -c 64; echo
+
 3) Generate a client key:  tr </dev/urandom -dc 0-9a-f | head -c 64; echo
 
-4) Run both client and server to learn the public keys it logs of
-each, and put those in each others' configs.
+4.1) Put the keys in the relevant config files.
+
+4.2) Run both client and server to learn the public keys it logs of each, and
+put those in each others' configs. NB. the port number used will be based on
+the server's public key. If you don't like the port, generate a new server key.
+
 
 5) set all other UDP ports to DROP by default (instead of sending ICMP
 port unreachable).
