@@ -2,12 +2,22 @@
 
 A secure, auditable port knock daemon.
 
-## Why
+## Why port knocking
+
+Port knocking is used to restrict access to non-public a network
+service (eg. ssh) in cases where the client's IP address is not known
+ahead of time (eg. a dynamic residential IP address).
+
+This protects the service against remote attacks with an unprivileged
+position on the network - random other hosts on the internet.
+
+## Why Gnocchi
 
  * gnocchi is written in Python, with reduced attack surface compared to C
  * gnocchi is around 200 lines, so can be reasonably audited before use
  * replay protection by default
  * can and should be run as non-root user
+ * strong cryptographic security
 
 ## WARNING
 
@@ -58,6 +68,8 @@ connections, sleeps for 5 seconds, then removes the rule.
 12) If it works, consider persistently removing the rule that allows
 the service from the normal firewall.
 
+## Adversary model
+
 The adversary can:
  * Convince the client to send to the adversary's server with the victim server's pubkey
  * Convince the client to send to the adversary's server with the adversary server's pubkey
@@ -66,16 +78,13 @@ The adversary can:
  * Drop or inject any packets on the network
 
 Gnocchi does not defend against an adversary who can both read and
-arbitrarily inject on the network.
+arbitrarily inject on the network. Such an adversary is capable of
+hijacking or spoofing a TCP session from the client, and no port
+knocking daemon can protect against this.
 
-Such an adversary could allow the knock to go ahead and quickly
-connect to the now opened service with injected syn TCP packet and
-reading the TCP syn/ack of the server.
-
-No port knocking systems can defend against this attack, however
-Gnocchi only allows a single syn packet through, so the valid user
-will have some feedback when their own session fails to connect
-(bearing in mind that normal packet loss can have the same effect).
+Instead, port knocking should be used to firewall against other hosts
+on the internet, where restricting access to a fixed source IP would
+not possible (eg. you have a dynamic IP address).
 
 Countermeasures:
  * The packet must be signed by a key belonging to the client
@@ -92,7 +101,7 @@ Defense in depth (you):
  * Don't publish the server's public key
  * Clients should use a different key for each knock server instance
 
-### Protocol:
+## Protocol:
 
 crypto_box_seal(crypto_box_sign("v01 knock $CLIENT_IP $SERVER_IP $SERVER_PUBKEY $COUNTER_HEX", client_signkey), server_pubkey)
 
@@ -100,4 +109,6 @@ crypto_box_seal(crypto_box_sign("v01 knock $CLIENT_IP $SERVER_IP $SERVER_PUBKEY 
  * SERVER_IP is the ascii IP4 the client expects to connect to
  * Both IP values are left padded to length 15 using spaces.
  * SERVER_PUBKEY is the hex of the server daemon's encryption key
- * COUNTER_HEX is the counter number in hex, zero padded to length 32.
+ * COUNTER_HEX is the counter number in hex, zero padded to length
+   32. The counter is incremented by 1 on the client, and succeeds at
+   the server if it is greater than all previously seen counter values.
