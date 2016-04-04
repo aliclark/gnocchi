@@ -76,9 +76,10 @@ the service from the normal firewall.
 The adversary can:
  * Convince the client to send to the adversary's server with the victim server's pubkey
  * Convince the client to send to the adversary's server with the adversary server's pubkey
- * Read any packets on the network
- * OR
- * Drop or inject any packets on the network
+ * Send packets (eg. UDP, TCP) from their own IP address to the server
+ * Drop arbitrary packets on the network
+ * Either: Read any packets on the network
+ * Or: Inject arbitrary packets on the network
 
 Gnocchi does not defend against an adversary who can both read and
 arbitrarily inject on the network. Such an adversary is capable of
