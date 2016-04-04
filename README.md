@@ -94,10 +94,10 @@ Defense in depth (you):
 
 ### Protocol:
 
-crypto_box_seal(crypto_box_sign("v01 knock $CLIENT_IP $SERVER_IP $COUNTER_HEX", client_signkey), server_pubkey)
+crypto_box_seal(crypto_box_sign("v01 knock $CLIENT_IP $SERVER_IP $SERVER_PUBKEY $COUNTER_HEX", client_signkey), server_pubkey)
 
  * CLIENT_IP is the ascii IP4 the client expects to be connecting from
  * SERVER_IP is the ascii IP4 the client expects to connect to
  * Both IP values are left padded to length 15 using spaces.
+ * SERVER_PUBKEY is the hex of the server daemon's encryption key
  * COUNTER_HEX is the counter number in hex, zero padded to length 32.
-
