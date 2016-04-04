@@ -3,12 +3,12 @@
 A secure, auditable port knock daemon.
 
 
-/ WARNING
-| Setting up a port knock firewal is extremely risky and can lead to
-| locking out of a server. Please do not save any firewall to a
-| persistent state until you are absolutely sure it works. Until that
-| point, be sure that a hard reboot can get back to a working state.
-\ WARNING
+/ WARNING |
+Setting up a port knock firewal is extremely risky and can lead to
+locking out of a server. Please do not save any firewall to a
+persistent state until you are absolutely sure it works. Until that
+point, be sure that a hard reboot can get back to a working state.
+| WARNING \
 
 
 I'm not using this software yet. Use at your own risk.
