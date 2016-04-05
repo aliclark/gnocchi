@@ -126,10 +126,9 @@ data_len_bin = '0000'.decode('hex')
 rest_bin = '\x00' * (pad_blocks * 16)
 server_ip_bin = socket.inet_aton(server_ip)
 
-sig = pysodium.crypto_sign_detached((magic_bin +
+sig = pysodium.crypto_sign_detached((nonce + magic_bin + client_sign_public_key +
                                      counter_bin + data_len_bin + rest_bin +
-                                     client_sign_public_key + server_ip_bin +
-                                     server_private_key + nonce),
+                                     server_private_key + server_ip_bin),
                                     client_sign_private_key)
 
 cdata = nonce + pysodium.crypto_secretbox((magic_bin + client_sign_public_key + sig +

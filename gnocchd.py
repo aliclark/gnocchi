@@ -180,9 +180,9 @@ while True:
 
         try:
             pysodium.crypto_sign_verify_detached(pkt_sig,
-                                                 (magic_bin + pkt_counter_bin + plain +
-                                                  pkt_sign_pub + server_ip_bin +
-                                                  server_private_key + pkt_nonce),
+                                                 (pkt_nonce + magic_bin + pkt_sign_pub +
+                                                  pkt_counter_bin + plain +
+                                                  server_private_key + server_ip_bin),
                                                  pkt_sign_pub)
         except:
             # shenanigans, the data isn't signed by that user
