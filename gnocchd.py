@@ -8,15 +8,14 @@ import pysodium
 import time
 import subprocess
 
-server_public_key = None
 server_private_key = None
 server_ip = None
 server_port = None
 client_sign_keys = []
 knocked_command = None
 
+server_private_key_regex = re.compile(r'^([0-9a-f]{64})$')
 client_key_regex = re.compile(r'^([0-9a-f]{'+str(pysodium.crypto_sign_PUBLICKEYBYTES*2)+r'})$')
-server_seed_regex = re.compile(r'^([0-9a-f]{64})$')
 
 def log(msg, client_ip=None, client_port=None, post=''):
     sys.stderr.write(time.strftime('%Y-%m-%d %H:%M:%S')+' '+msg+(' from '+client_ip+':'+str(client_port) if client_ip and client_port else '')+(': '+repr(post) if post else '')+'\n')
@@ -27,14 +26,18 @@ def parse_client_sign_key(keystr):
         return None
     return m.group(1).decode('hex')
 
+def port_from_private_key(k):
+    h = pysodium.crypto_generichash(k)
+    return (ord(h[-2]) << 8) | ord(h[-1])
+
 def port_from_pubkey(pk):
     return (ord(pk[-2]) << 8) | ord(pk[-1])
 
-def parse_server_keypair(keystr):
-    m = server_seed_regex.match(keystr)
+def parse_server_private_key(keystr):
+    m = server_private_key_regex.match(keystr)
     if not m:
         return None
-    return pysodium.crypto_box_seed_keypair(m.group(1).decode('hex'))
+    return m.group(1).decode('hex')
 
 cfg = open(sys.argv[1], 'r')
 cfglines = cfg.read().splitlines()
@@ -59,8 +62,8 @@ for l in cfglines:
     elif parts[0] == 'server_private_key':
         if len(parts) != 2:
             continue
-        server_public_key, server_private_key = parse_server_keypair(parts[1])
-        server_port = port_from_pubkey(server_public_key)
+        server_private_key = parse_server_private_key(parts[1])
+        server_port = port_from_private_key(server_private_key)
         if server_port <= 1024:
             log('[ERROR] This key maps to a low port. Please generate a new server key')
             sys.exit(1)
@@ -113,21 +116,14 @@ def write_counter(c):
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((server_ip, server_port))
 
-log('[INFO] Listening on '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex'))
+log('[INFO] Listening on '+server_ip+':'+str(server_port))
 
-command_regex = re.compile(r'^v02 knock (?P<server_ip>[0-9\. ]{15}) (?P<server_pub>[0-9a-f]{64}) (?P<counter>[0-9a-f]{32})[ ]*$')
+# NONCE(24) + MAC(16) + MAGIC(8) + SIGNPUB(32) + SIG(64) + HASH(32) + COUNTER(14) + LEN(2) + REST
 
-def parse_command(data):
-    parts = command_regex.match(data)
-    if not parts:
-        return None
-    return {
-        'server_ip': parts.group('server_ip').strip(),
-        'server_pub': parts.group('server_pub'),
-        'counter': int(parts.group('counter'), 16)
-    }
+PROTO_MIN_SIZE = 192
 
-PROTO_MIN_SIZE = pysodium.crypto_box_SEALBYTES + pysodium.crypto_sign_BYTES + 128
+magic_bin = '42f9708e2f1369d9'.decode('hex') # chosen by fair die
+server_ip_bin = socket.inet_aton(server_ip)
 
 while True:
     try:
@@ -139,60 +135,85 @@ while True:
             log('[INFO] small packet', client_ip, client_port)
             continue
 
+        pkt_nonce = cdata[:pysodium.crypto_secretbox_NONCEBYTES]
+
         try:
-            signed = pysodium.crypto_box_seal_open(cdata, server_public_key, server_private_key)
-        except:
+            plain = pysodium.crypto_secretbox_open(cdata[pysodium.crypto_secretbox_NONCEBYTES:],
+                                                   pkt_nonce,
+                                                   server_private_key)
+        except Exception as e:
             # normal-ish: any big enough packet to the port will cause
             # this, but unless knockd happens to run on a common UDP
             # port there's not much reason to see such a big packet
             log('[INFO] incorrect ciphertext', client_ip, client_port)
             continue
 
-        for sign_key in client_sign_keys:
-            try:
-                plain = pysodium.crypto_sign_open(signed, sign_key)
-                break
-            except:
-                # not an issue if we have several candidate keys to check
-                pass
-        else:
-            # Very unusual: someone knows the server public key but is
-            # not a valid client. You should investigate how they came
-            # to know that key.
+        pkt_magic = plain[:8]
+        plain = plain[8:]
+
+        if pkt_magic != magic_bin:
+            # unrecognised protocol version
+            log('[WARN] unrecognised version magic', client_ip, client_port, pkt_magic.encode('hex'))
+            continue
+
+        pkt_sign_pub = plain[:32]
+        plain = plain[32:]
+
+        if pkt_sign_pub not in client_sign_keys:
+            log('[WARN] unrecognised client sign key', client_ip, client_port, pkt_sign_pub.encode('hex'))
+            continue
+
+        pkt_sig_closed = plain[:64+32]
+        plain = plain[64+32:]
+
+        try:
+            pkt_hash = pysodium.crypto_sign_open(pkt_sig_closed, pkt_sign_pub)
+        except:
+            # shenanigans, the data isn't signed by that user
             log('[SEVERE] bad signature', client_ip, client_port)
             continue
 
-        command = parse_command(plain)
-        if not command:
-            # someone managed to sign an invalid command!?
-            log('[SEVERE] bad command', client_ip, client_port, plain)
+        if pkt_hash != pysodium.crypto_generichash(magic_bin + plain +
+                                                   pkt_sign_pub + server_ip_bin +
+                                                   server_private_key + pkt_nonce,
+                                                   outlen=32):
+            # the rest of the details don't agree with the hash
+            log('[SEVERE] hash mismatch', client_ip, client_port)
             continue
 
-        if command['server_ip'] != server_ip:
-            log('[POSSIBLE_REPLAY] bad destination IP', client_ip, client_port, command)
+        pkt_counter_bin = plain[:14]
+        plain = plain[14:]
+
+        pkt_data_len = plain[:2]
+        plain = plain[2:]
+
+        # TODO: allow *either* IP *or* data. It should already be
+        # specified in config which is allowed
+        if int(pkt_data_len.encode('hex'), 16) != 0:
+            log('[ERROR] data not supported yet', client_ip, client_port)
             continue
-        if command['server_pub'] != server_public_key.encode('hex'):
-            log('[POSSIBLE_REPLAY] bad destination public key', client_ip, client_port, command)
-            continue
+
+        pkt_counter = int(pkt_counter_bin.encode('hex'), 16)
 
         # FIXME: lock counter file
-
-        if command['counter'] <= read_counter():
-            log('[POSSIBLE_REPLAY] bad counter', client_ip, client_port, command)
+        if pkt_counter <= read_counter():
+            log('[POSSIBLE_REPLAY] bad counter', client_ip, client_port)
             # FIXME: unlock counter file
             continue
 
         # Cool, write that counter ASAP so the packet can't be used again
-        write_counter(command['counter'])
-
+        write_counter(pkt_counter)
         # FIXME: unlock counter file
+
 
         # XXX: We *could* do a date check too, but previous checks
         # should be sufficient. There is more risk of server's clock
         # going wrong and the client getting locked out than benefit.
 
-        log('[INFO] valid knock', client_ip, client_port, command)
+
+        log('[INFO] valid knock', client_ip, client_port)
         subprocess.Popen([knocked_command, client_ip])
+
 
     except KeyboardInterrupt:
         break

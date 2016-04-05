@@ -8,7 +8,7 @@ import random
 import pysodium
 import socket
 
-server_public_key = None
+server_private_key = None
 server_ip = None
 server_port = None
 
@@ -17,20 +17,21 @@ client_sign_public_key = None
 
 state_file = None
 
-server_public_key_regex = re.compile(r'^([0-9a-f]{'+str(pysodium.crypto_box_PUBLICKEYBYTES*2)+r'})$')
+server_private_key_regex = re.compile(r'^([0-9a-f]{64})$')
 client_seed_regex = re.compile(r'^([0-9a-f]{64})$')
 
 def log(msg):
     sys.stderr.write(time.strftime('%Y-%m-%d %H:%M:%S')+' '+msg+'\n')
 
-def parse_server_public_key(keystr):
-    m = server_public_key_regex.match(keystr)
+def parse_server_private_key(keystr):
+    m = server_private_key_regex.match(keystr)
     if not m:
         return None
     return m.group(1).decode('hex')
 
-def port_from_pubkey(pk):
-    return (ord(pk[-2]) << 8) | ord(pk[-1])
+def port_from_private_key(k):
+    h = pysodium.crypto_generichash(k)
+    return (ord(h[-2]) << 8) | ord(h[-1])
 
 def parse_client_keypair(keystr):
     m = client_seed_regex.match(keystr)
@@ -58,11 +59,11 @@ for l in cfglines:
             continue
         client_sign_public_key, client_sign_private_key = parse_client_keypair(parts[1])
 
-    elif parts[0] == 'server_public_key':
+    elif parts[0] == 'server_private_key':
         if len(parts) != 2:
             continue
-        server_public_key = parse_server_public_key(parts[1])
-        server_port = port_from_pubkey(server_public_key)
+        server_private_key = parse_server_private_key(parts[1])
+        server_port = port_from_private_key(server_private_key)
 
     elif parts[0] == 'state_file':
         if len(parts) != 2:
@@ -101,22 +102,43 @@ def write_counter(c):
     with open(state_file, 'w') as statefile:
         statefile.write('client RESERVED '+str(c)+'\n')
 
+def saferandom(n):
+    if not n:
+        return b''
+    # hash so we don't print prng output onto the network
+    return pysodium.crypto_generichash(pysodium.randombytes(n), outlen=n)
 
 # FIXME: file should be locked over this
 counter = read_counter()
 write_counter(counter + 1)
 # FIXME: unlock file
 
-log('[INFO] knock '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex')+' '+client_sign_public_key.encode('hex'))
+log('[INFO] knock '+server_ip+':'+str(server_port)+' '+client_sign_public_key.encode('hex'))
 
-command = 'v02 knock '+server_ip.rjust(15)+' '+server_public_key.encode('hex')+' '+hex(counter)[2:].zfill(32)+(' '*5)
-assert len(command) == 128
-pad_blocks = random.randint(0, 49)
-command += ' ' * (pad_blocks * 16)
+# NONCE(24) + MAC(16) + MAGIC(8) + SIGNPUB(32) + SIG(64) + HASH(32) + COUNTER(14) + LEN(2) + REST
 
-signed = pysodium.crypto_sign(command, client_sign_private_key)
-cdata = pysodium.crypto_box_seal(signed, server_public_key)
-assert len(cdata) <= 1024
+nonce = saferandom(pysodium.crypto_secretbox_NONCEBYTES)
+pad_blocks = random.randint(0, 52)
+
+magic_bin = '42f9708e2f1369d9'.decode('hex') # chosen by fair die
+counter_bin = hex(counter)[2:].zfill(28).decode('hex')
+data_len_bin = '0000'.decode('hex')
+rest_bin = '\x00' * (pad_blocks * 16)
+server_ip_bin = socket.inet_aton(server_ip)
+
+dets = pysodium.crypto_generichash(magic_bin +
+                                   counter_bin + data_len_bin + rest_bin +
+                                   client_sign_public_key + server_ip_bin +
+                                   server_private_key + nonce,
+                                   outlen=32)
+
+signed = pysodium.crypto_sign(dets, client_sign_private_key)
+
+cdata = nonce + pysodium.crypto_secretbox((magic_bin + client_sign_public_key + signed +
+                                           counter_bin + data_len_bin + rest_bin),
+
+                                          nonce,
+                                          server_private_key)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.sendto(cdata, (server_ip, server_port))

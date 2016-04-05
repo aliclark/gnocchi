@@ -16,7 +16,7 @@ internet.
 
  * gnocchi is written in Python, with reduced attack surface compared to C
  * gnocchi is around 200 lines, so can be reasonably audited before use
- * replay protection by default
+ * replay protection
  * can and should be run as non-root user
  * strong cryptographic security
  * fault tolerant
@@ -39,7 +39,7 @@ WORKING.
 
 2) Generate a server key:  tr </dev/urandom -dc 0-9a-f | head -c 64; echo
 
-3) Generate a client key:  tr </dev/urandom -dc 0-9a-f | head -c 64; echo
+3) Generate a client private key:  tr </dev/urandom -dc 0-9a-f | head -c 64; echo
 
 4.1) Put the keys in the relevant config files.
 
@@ -84,38 +84,50 @@ ability to inject arbitrary packets. Such an adversary is capable of
 hijacking or spoofing any TCP session from the client, and no port
 knocking daemon can protect against this.
 
+An adversary with packet read capability is also able to copy the
+knock packet and send it from their own IP address, racing the
+original packet. Therefore please do not use the client IP of the
+knock for anything more sensitive than exposing the port to that IP.
+
 Countermeasures:
  * The packet must be signed by a key belonging to the client
  * Each packet can only be used for one port knock on a daemon (due to counter increment)
  * Each knock limits its scope to the IP of the server
- * Each knock limits its scope to the public key of the server
+ * Each knock limits its scope to the key of the server
  * Each knock only allows for one connect attempt
 
-Defense in depth (implemented):
+Further defenses:
  * Packet content is encrypted and length randomized so a very casual
-   observer will not recognize the protocol/software being used.
-   * Nb. the first 32 bytes of the packet are not uniform and can be
-     identified as a Curve25519 public key.
-
-Defense in depth (you):
- * Don't publish the listen port, and set other UDP ports to DROP by default
- * Don't publish the server's public key
+   observer won't recognize the protocol/software being used.
+ * Don't publicise the listen port, and set other UDP ports to DROP by default
  * Clients should use a different key for each knock server instance
 
 ## Protocol:
 
-crypto_box_seal(crypto_box_sign("v02 knock $SERVER_IP $SERVER_PUBKEY $COUNTER_HEX $PAD", client_signkey), server_pubkey)
 
- * SERVER_IP is the ascii IP4 the client expects to connect to, left
-   padded to length 15 using spaces.
+```
+HASH = hash(MAGIC(16) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832) || SIGNPUB(32) || SERVER_IPV4(4) || SERVER_KEY(32) || NONCE(23))
+PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) || HASH(32) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832)}
+```
 
- * SERVER_PUBKEY is the 64 character hex of the server daemon's encryption key
+* NONCE is a fresh random string
+* MAC is the ciphertext MAC from crypto_secretbox
+* ciphertext is encrypted using the NONCE and server's secret key
+* MAGIC is the binary value of "42f9708e2f1369d9"
+* SIGNPUB is the client's signing public key
+* SIG is the client's signature of the HASH
+* COUNTER is the incrementing counter to prevent replay. The counter is incremented by 1 on the client, and succeeds at the server if it is greater than all previously seen counter values.
+* SERVER_IPV4 is the server's IP address
+* SERVER_KEY is the server's secret key
+* DATA_LEN is the amount of DATA that is valid (after that is padding).
+* DATA_PLUS_PADDING is DATA_LEN bytes of data, followed by padding to
+  be ignored. The padding usually rounds the payload length up to the nearest 16 bytes.
 
- * COUNTER_HEX is the counter value in hex, zero padded to length 32.
+For now data is not supported and DATA_LEN must be zero. Once
+implemented, the configuration must define whether data is expected or
+not. The server can either accept the client_ip, or accept data.
 
-   The counter is incremented by 1 on the client, and succeeds at the
-   server if it is greater than all previously seen counter values.
-
- * PAD is any number of spaces. The client will use this to round the
-   entire payload length up to a random multiple of 16, between 128
-   and 1024 bytes long.
+The reason both are not allowed at the same time is because an
+adversary can resend a packet from any IP address, which could have
+dangerous implications if the data is trusted to be from the reported
+IP address.
