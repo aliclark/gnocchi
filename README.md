@@ -106,8 +106,8 @@ Further defenses:
 
 
 ```
-HASH = hash(MAGIC(8) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832) || SIGNPUB(32) || SERVER_IPV4(4) || SERVER_KEY(32) || NONCE(24))
-PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) || HASH(32) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832)}
+SIG = sign(MAGIC(8) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832) || SIGNPUB(32) || SERVER_IPV4(4) || SERVER_KEY(32) || NONCE(24))
+PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832)}
 ```
 
 * NONCE is a fresh random string
@@ -115,7 +115,7 @@ PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) |
 * ciphertext is encrypted using the NONCE and server's secret key
 * MAGIC is the binary value of "42f9708e2f1369d9"
 * SIGNPUB is the client's signing public key
-* SIG is the client's signature of the HASH
+* SIG is the client's signature of the packet data
 * COUNTER is the incrementing counter to prevent replay. The counter is incremented by 1 on the client, and succeeds at the server if it is greater than all previously seen counter values.
 * SERVER_IPV4 is the server's IP address
 * SERVER_KEY is the server's secret key

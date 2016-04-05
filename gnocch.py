@@ -115,10 +115,10 @@ write_counter(counter + 1)
 
 log('[INFO] knock '+server_ip+':'+str(server_port)+' '+client_sign_public_key.encode('hex'))
 
-# NONCE(24) + MAC(16) + MAGIC(8) + SIGNPUB(32) + SIG(64) + HASH(32) + COUNTER(14) + LEN(2) + REST
+# NONCE(24) + MAC(16) + MAGIC(8) + SIGNPUB(32) + SIG(64) + COUNTER(14) + LEN(2) + REST
 
 nonce = saferandom(pysodium.crypto_secretbox_NONCEBYTES)
-pad_blocks = random.randint(0, 52)
+pad_blocks = random.randint(0, 54)
 
 magic_bin = '42f9708e2f1369d9'.decode('hex') # chosen by fair die
 counter_bin = hex(counter)[2:].zfill(28).decode('hex')
@@ -126,17 +126,14 @@ data_len_bin = '0000'.decode('hex')
 rest_bin = '\x00' * (pad_blocks * 16)
 server_ip_bin = socket.inet_aton(server_ip)
 
-dets = pysodium.crypto_generichash(magic_bin +
-                                   counter_bin + data_len_bin + rest_bin +
-                                   client_sign_public_key + server_ip_bin +
-                                   server_private_key + nonce,
-                                   outlen=32)
+sig = pysodium.crypto_sign_detached((magic_bin +
+                                     counter_bin + data_len_bin + rest_bin +
+                                     client_sign_public_key + server_ip_bin +
+                                     server_private_key + nonce),
+                                    client_sign_private_key)
 
-signed = pysodium.crypto_sign(dets, client_sign_private_key)
-
-cdata = nonce + pysodium.crypto_secretbox((magic_bin + client_sign_public_key + signed +
+cdata = nonce + pysodium.crypto_secretbox((magic_bin + client_sign_public_key + sig +
                                            counter_bin + data_len_bin + rest_bin),
-
                                           nonce,
                                           server_private_key)
 
