@@ -73,7 +73,7 @@ for l in cfglines:
             continue
         client_sign_keys.append(parse_client_sign_key(parts[1]))
 
-    elif parts[0] == 'state_file':
+    elif parts[0] == 'server_state':
         if len(parts) != 2:
             continue
         state_file = parts[1]

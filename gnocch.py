@@ -65,7 +65,7 @@ for l in cfglines:
         server_private_key = parse_server_private_key(parts[1])
         server_port = port_from_private_key(server_private_key)
 
-    elif parts[0] == 'state_file':
+    elif parts[0] == 'client_state':
         if len(parts) != 2:
             continue
         state_file = parts[1]
