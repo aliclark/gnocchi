@@ -92,8 +92,10 @@ Countermeasures:
  * Each knock only allows for one connect attempt
 
 Defense in depth (implemented):
- * Packet content is encrypted and length randomized so a casual observer will
-   not recognize the protocol/software being used
+ * Packet content is encrypted and length randomized so a very casual
+   observer will not recognize the protocol/software being used.
+   * Nb. the first 32 bytes of the packet are not uniform and can be
+     identified as a Curve25519 public key.
 
 Defense in depth (you):
  * Don't publish the listen port, and set other UDP ports to DROP by default
