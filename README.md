@@ -87,8 +87,8 @@ knocking daemon can protect against this.
 Countermeasures:
  * The packet must be signed by a key belonging to the client
  * Each packet can only be used for one port knock on a daemon (due to counter increment)
- * Each knock limits its scope to the IP pairs of the communication
- * Each knock limits its scope to the public key of the daemon
+ * Each knock limits its scope to the IP of the server
+ * Each knock limits its scope to the public key of the server
  * Each knock only allows for one connect attempt
 
 Defense in depth (implemented):
@@ -106,8 +106,10 @@ crypto_box_seal(crypto_box_sign("v02 knock $SERVER_IP $SERVER_PUBKEY $COUNTER_HE
 
  * SERVER_IP is the ascii IP4 the client expects to connect to, left
    padded to length 15 using spaces.
+
  * SERVER_PUBKEY is the 64 character hex of the server daemon's encryption key
- * COUNTER_HEX is the counter value in hex, zero padded to length
-   32. The counter is incremented by 1 on the client, and succeeds at
-   the server if it is greater than all previously seen counter
-   values.
+
+ * COUNTER_HEX is the counter value in hex, zero padded to length 32.
+
+   The counter is incremented by 1 on the client, and succeeds at the
+   server if it is greater than all previously seen counter values.
