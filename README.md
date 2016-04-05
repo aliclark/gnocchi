@@ -102,6 +102,13 @@ Further defenses:
  * Don't publicise the listen port, and set other UDP ports to DROP by default
  * Clients should use a different key for each knock server instance
 
+## Other uses
+
+Gnocchi can be used to perform a range of tasks securely in a single packet, such as:
+ * Reboot a server
+ * Setting an MoTD on a webpage
+ * Sending a small email
+
 ## Protocol:
 
 
