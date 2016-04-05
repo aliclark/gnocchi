@@ -125,6 +125,9 @@ PROTO_MIN_SIZE = 160
 magic_bin = '42f9708e2f1369d9'.decode('hex') # chosen by fair die
 server_ip_bin = socket.inet_aton(server_ip)
 
+# FIXME: lock state file for duration of the program
+counter = read_counter()
+
 while True:
     try:
         client_ip, client_port = (None, None)
@@ -166,9 +169,18 @@ while True:
         pkt_sig = plain[:64]
         plain = plain[64:]
 
+        pkt_counter_bin = plain[:14]
+        pkt_counter = int(pkt_counter_bin.encode('hex'), 16)
+        plain = plain[14:]
+
+        # check counter early so we don't need to verify replays
+        if pkt_counter <= counter:
+            log('[POSSIBLE_REPLAY] bad counter', client_ip, client_port)
+            continue
+
         try:
             pysodium.crypto_sign_verify_detached(pkt_sig,
-                                                 (magic_bin + plain +
+                                                 (magic_bin + pkt_counter_bin + plain +
                                                   pkt_sign_pub + server_ip_bin +
                                                   server_private_key + pkt_nonce),
                                                  pkt_sign_pub)
@@ -177,40 +189,21 @@ while True:
             log('[SEVERE] bad signature', client_ip, client_port)
             continue
 
-        pkt_counter_bin = plain[:14]
-        pkt_counter = int(pkt_counter_bin.encode('hex'), 16)
-        plain = plain[14:]
-
         pkt_data_len_bin = plain[:2]
         pkt_data_len = int(pkt_data_len_bin.encode('hex'), 16)
         plain = plain[2:]
 
-        # TODO: allow *either* IP *or* data. It should already be
-        # specified in config which is allowed
-        if pkt_data_len != 0:
-            log('[ERROR] data not supported yet', client_ip, client_port)
-            continue
-
         pkt_data = plain[:pkt_data_len]
 
-
-        # FIXME: lock counter file
-        if pkt_counter <= read_counter():
-            log('[POSSIBLE_REPLAY] bad counter', client_ip, client_port)
-            # FIXME: unlock counter file
-            continue
-
         # Cool, write that counter ASAP so the packet can't be used again
-        write_counter(pkt_counter)
-        # FIXME: unlock counter file
-
-
-        # XXX: We *could* do a date check too, but previous checks
-        # should be sufficient. There is more risk of server's clock
-        # going wrong and the client getting locked out than benefit.
-
+        counter = pkt_counter
+        write_counter(counter)
 
         log('[INFO] valid knock', client_ip, client_port)
+
+        # NB. do *not* trust that client_ip is the originator (beyond
+        # port knocking functionality). A person who can perform
+        # packet captures can race the packet from their own IP
         subprocess.Popen([knocked_command, client_ip, pkt_data])
 
 
