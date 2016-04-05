@@ -102,7 +102,7 @@ Defense in depth (you):
 
 ## Protocol:
 
-crypto_box_seal(crypto_box_sign("v02 knock $SERVER_IP $SERVER_PUBKEY $COUNTER_HEX", client_signkey), server_pubkey)
+crypto_box_seal(crypto_box_sign("v02 knock $SERVER_IP $SERVER_PUBKEY $COUNTER_HEX $PAD", client_signkey), server_pubkey)
 
  * SERVER_IP is the ascii IP4 the client expects to connect to, left
    padded to length 15 using spaces.
@@ -113,3 +113,7 @@ crypto_box_seal(crypto_box_sign("v02 knock $SERVER_IP $SERVER_PUBKEY $COUNTER_HE
 
    The counter is incremented by 1 on the client, and succeeds at the
    server if it is greater than all previously seen counter values.
+
+ * PAD is any number of spaces. The client will use this to round the
+   entire payload length up to a random multiple of 16, between 128
+   and 1024 bytes long.

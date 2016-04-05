@@ -115,7 +115,7 @@ sock.bind((server_ip, server_port))
 
 log('[INFO] Listening on '+server_ip+':'+str(server_port)+' '+server_public_key.encode('hex'))
 
-command_regex = re.compile(r'^v02 knock (?P<server_ip>[0-9\. ]{15}) (?P<server_pub>[0-9a-f]{64}) (?P<counter>[0-9a-f]{32})     ([ ]{16})*$')
+command_regex = re.compile(r'^v02 knock (?P<server_ip>[0-9\. ]{15}) (?P<server_pub>[0-9a-f]{64}) (?P<counter>[0-9a-f]{32})[ ]*$')
 
 def parse_command(data):
     parts = command_regex.match(data)
