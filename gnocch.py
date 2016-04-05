@@ -108,6 +108,9 @@ def saferandom(n):
     # hash so we don't print prng output onto the network
     return pysodium.crypto_generichash(pysodium.randombytes(n), outlen=n)
 
+def roundup(n, m):
+    return n if (n % m) == 0 else (n + m) - (n % m)
+
 # FIXME: file should be locked over this
 counter = read_counter()
 write_counter(counter + 1)
@@ -117,24 +120,34 @@ log('[INFO] knock '+server_ip+':'+str(server_port)+' '+client_sign_public_key.en
 
 # NONCE(24) + MAC(16) + MAGIC(8) + SIGNPUB(32) + SIG(64) + COUNTER(14) + LEN(2) + REST
 
+PROTO_MIN_SIZE = 160
+
+arg = sys.argv[2] if len(sys.argv) > 2 else b''
+if PROTO_MIN_SIZE + len(arg) > 1024:
+    log('[ERROR] argument too long')
+    sys.exit(1)
+
+padded_min_size = PROTO_MIN_SIZE + roundup(len(arg), 16)
+padding = '\x00' * ((roundup(len(arg), 16) - len(arg)) +
+                    (16 * random.randint(0, (1024 - padded_min_size) / 16)))
+
 nonce = saferandom(pysodium.crypto_secretbox_NONCEBYTES)
-pad_blocks = random.randint(0, 54)
 
 magic_bin = '42f9708e2f1369d9'.decode('hex') # chosen by fair die
 counter_bin = hex(counter)[2:].zfill(28).decode('hex')
 data_len_bin = '0000'.decode('hex')
-rest_bin = '\x00' * (pad_blocks * 16)
 server_ip_bin = socket.inet_aton(server_ip)
 
 sig = pysodium.crypto_sign_detached((nonce + magic_bin + client_sign_public_key +
-                                     counter_bin + data_len_bin + rest_bin +
+                                     counter_bin + data_len_bin + arg + padding +
                                      server_private_key + server_ip_bin),
                                     client_sign_private_key)
 
 cdata = nonce + pysodium.crypto_secretbox((magic_bin + client_sign_public_key + sig +
-                                           counter_bin + data_len_bin + rest_bin),
+                                           counter_bin + data_len_bin + arg + padding),
                                           nonce,
                                           server_private_key)
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.sendto(cdata, (server_ip, server_port))
+log('[INFO] sent '+str(len(cdata)))
