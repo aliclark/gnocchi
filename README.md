@@ -113,8 +113,8 @@ Gnocchi can be used to perform a range of tasks securely in a single packet, suc
 
 
 ```
-SIG = sign(NONCE(24) || MAGIC(8) || SIGNPUB(32) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832) || SERVER_KEY(32) || SERVER_IPV4(4))
-PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-832)}
+SIG = sign(NONCE(24) || MAGIC(8) || SIGNPUB(32) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-864) || SERVER_KEY(32) || SERVER_IPV4(4))
+PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-864)}
 ```
 
 * NONCE is a fresh random string
