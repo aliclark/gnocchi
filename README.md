@@ -15,7 +15,7 @@ internet.
 ## Why Gnocchi
 
  * gnocchi is written in Python, with reduced attack surface compared to C
- * gnocchi is around 200 lines, so can be reasonably audited before use
+ * gnocchi is around 300 lines, so can be reasonably audited before use
  * replay protection
  * can and should be run as non-root user
  * strong cryptographic security
@@ -132,9 +132,3 @@ PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) |
   be ignored. The padding usually rounds the payload length up to the nearest 16 bytes.
 * SERVER_KEY is the server's secret key
 * SERVER_IPV4 is the server's IP address
-
-Gnocchi can be used to send data, but when using Gnocchi this way take
-note that the reported IP may have been spoofed. This is because an
-adversary who can see the packet (ie. on the same network) can resend
-it from any IP address, which could have dangerous implications if the
-data was trusted to be from the reported IP address.
