@@ -98,7 +98,7 @@ def saferandom(n):
     if not n:
         return b''
     # hash so we don't print prng output onto the network
-    return pysodium.crypto_generichash(pysodium.randombytes(n), outlen=n)
+    return pysodium.crypto_generichash(pysodium.randombytes(min(n, 32)), outlen=n)
 
 def roundup(n, m):
     return n if (n % m) == 0 else (n + m) - (n % m)
@@ -204,11 +204,11 @@ def run_server():
         except Exception as e:
             log('[ERROR] packet exception', client_ip, client_port, e)
 
+
 def run_client():
-    # FIXME: file should be locked over this
+    # FIXME: lock state file for duration of the program
     counter = read_counter()
     write_counter(counter + 1)
-    # FIXME: unlock file
 
     log('[INFO] knock '+server_ip+':'+str(server_port)+' '+client_sign_public_key.encode('hex'))
 
