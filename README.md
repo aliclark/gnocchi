@@ -43,21 +43,22 @@ WORKING.
 
 4.1) Put the keys in the relevant config files.
 
-4.2) Run both client and server to learn the public keys it logs of each, and
-put those in each others' configs. NB. the port number used will be based on
-the server's public key. If you don't like the port, generate a new server key.
+4.2) Run the client to learn the public key it logs, and put it in the
+server's config. NB. the port number used will be based on a hash
+server's key. If you don't like the port, generate a new server key.
 
+5) allow UDP traffic to the port knocking daemon's port (and any other
+UDP services), then set all other UDP ports to DROP by default
+(instead of sending ICMP port unreachable).
 
-5) set all other UDP ports to DROP by default (instead of sending ICMP
-port unreachable).
-
-6) work out which ports are normally accessible (including the port
-being configured for port knocking). set iptables to allow NEW
-connections to these ports and block others by default, but always
-allow ESTABLISHED connections.
+6) work out which service ports are normally accessible (including the
+service port being configured for port knocking). Set iptables to
+allow NEW connections to these ports and block others by default, but
+always allow ESTABLISHED connections.
 
 7) create a setuid program that allows the source to establish NEW
-connections, sleeps for 5 seconds, then removes the rule.
+connections, sleeps for a few seconds, then removes the rule. An
+example is provided in "gnocched.sh".
 
 8) Test the above on a test service that is not normally accessible.
 
@@ -68,15 +69,15 @@ connections, sleeps for 5 seconds, then removes the rule.
 11) Remove the rule allowing the service in the firewall by default
 (but do not persist it yet). If this fails, a hard reboot should fix.
 
-12) If it works, consider persistently removing the rule that allows
+12) If it works, first double check that it still works fine after a
+reboot. Then maybe consider persistently removing the rule that allows
 the service from the normal firewall.
 
 ## Adversary model
 
 The adversary can:
- * Convince the client to send to the adversary's server with the victim server's pubkey
- * Convince the client to send to the adversary's server with the adversary server's pubkey
  * Send packets (eg. UDP, TCP) from their own IP address to the server
+ * Cannot see packets on the network in real time
 
 Gnocchi does not defend against an adversary who can read packets on
 the network, since this capability almost always comes with the
@@ -89,6 +90,9 @@ knock packet and send it from their own IP address, racing the
 original packet. Therefore please do not use the client IP of the
 knock for anything more sensitive than exposing the port to that IP.
 
+Gnocchi may however be securely used for other use-cases that do not
+depend on the source IP.
+
 Countermeasures:
  * The packet must be signed by a key belonging to the client
  * Each packet can only be used for one port knock on a daemon (due to counter increment)
@@ -97,10 +101,10 @@ Countermeasures:
  * Each knock only allows for one connect attempt
 
 Further defenses:
- * Packet content is encrypted and length randomized so a very casual
+ * Packet content is encrypted and length randomized so a casual
    observer won't recognize the protocol/software being used.
  * Don't publicise the listen port, and set other UDP ports to DROP by default
- * Clients should use a different key for each knock server instance
+ * Clients should use a different key for each knock server
 
 ## Other uses
 
@@ -110,7 +114,6 @@ Gnocchi can be used to perform a range of tasks securely in a single packet, suc
  * Sending a small email
 
 ## Protocol:
-
 
 ```
 SIG = sign(NONCE(24) || MAGIC(8) || SIGNPUB(32) || COUNTER(14) || DATA_LEN(2) || DATA_PLUS_PADDING(0-864) || SERVER_KEY(32) || SERVER_IPV4(4))
@@ -124,17 +127,14 @@ PACKET = NONCE(24) || MAC(16) || ciphertext{MAGIC(8) || SIGNPUB(32) || SIG(64) |
 * SIGNPUB is the client's signing public key
 * SIG is the client's signature of the packet data
 * COUNTER is the incrementing counter to prevent replay. The counter is incremented by 1 on the client, and succeeds at the server if it is greater than all previously seen counter values.
-* SERVER_IPV4 is the server's IP address
-* SERVER_KEY is the server's secret key
 * DATA_LEN is the amount of DATA that is valid (after that is padding).
 * DATA_PLUS_PADDING is DATA_LEN bytes of data, followed by padding to
   be ignored. The padding usually rounds the payload length up to the nearest 16 bytes.
+* SERVER_KEY is the server's secret key
+* SERVER_IPV4 is the server's IP address
 
-For now data is not supported and DATA_LEN must be zero. Once
-implemented, the configuration must define whether data is expected or
-not. The server can either accept the client_ip, or accept data.
-
-The reason both are not allowed at the same time is because an
-adversary can resend a packet from any IP address, which could have
-dangerous implications if the data is trusted to be from the reported
-IP address.
+Gnocchi can be used to send data, but when using Gnocchi this way take
+note that the reported IP may have been spoofed. This is because an
+adversary who can see the packet (ie. on the same network) can resend
+it from any IP address, which could have dangerous implications if the
+data was trusted to be from the reported IP address.
