@@ -109,7 +109,7 @@ Further defenses:
 ## Other uses
 
 Gnocchi can be used to perform a range of tasks securely in a single packet, such as:
- * Reboot a server
+ * Reboot a server (recovery)
  * Setting an MoTD on a webpage
  * Sending a small email
 
