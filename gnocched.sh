@@ -12,7 +12,7 @@ if ! [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
   exit 1
 fi
 
-rule="INPUT -p tcp -s '$ip' --dport 22 --syn -m state --state NEW -m limit --limit 1/hour --limit-burst 1 -j ACCEPT"
+rule="INPUT -p tcp -s $ip --dport 22 --syn -m state --state NEW -m limit --limit 1/hour --limit-burst 1 -j ACCEPT"
 
 iptables -I $rule
 sleep 10
