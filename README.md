@@ -24,12 +24,13 @@ internet.
 
 ## WARNING
 
-Setting up a port knock firewall is extremely risky and can lead to
-locking out of a server. Please do not save any firewall to a
-persistent state until you are absolutely sure it works. Until that
-point, be sure that a hard reboot can get back to a working state.
+Setting up a port knock firewall is extremely risky and can lead to locking out
+of a server. Please do not save any firewall to a persistent state until you
+are absolutely sure it works across a reboot, and have the configuration safely
+backed up.
 
-I'm not using this software yet. Use at your own risk.
+Until that point, be sure that a hard reboot can get back to a working state.
+Use at your own risk.
 
 ## General process
 
